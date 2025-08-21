@@ -1,0 +1,30 @@
+.equipment-select {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  font-size: 1rem;
+  box-sizing: border-box;
+  transition: border-color 0.3s;
+  background: white;
+}
+
+.equipment-select:focus {
+  outline: none;
+  border-color: #4a5568;
+}
+
+.equipment-select:disabled {
+  background: #f5f5f5;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.equipment-select.error {
+  border-color: #d32f2f;
+  background: #ffebee;
+}
+
+.equipment-select option {
+  padding: 8px;
+}
