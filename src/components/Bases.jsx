@@ -95,16 +95,52 @@ const Bases = () => {
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-IN', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
+    if (!dateString) return 'Not available';
+    try {
+      return new Date(dateString).toLocaleDateString('en-IN', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+      });
+    } catch (error) {
+      return 'Invalid date';
+    }
   };
 
   const formatLocation = (location) => {
-    if (!location?.lat || !location?.lng) return 'Not specified';
-    return `${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}`;
+    if (!location || typeof location !== 'object') {
+      return 'Not specified';
+    }
+    
+    const lat = location.lat;
+    const lng = location.lng;
+    
+    if (lat === null || lat === undefined || lng === null || lng === undefined) {
+      return 'Not specified';
+    }
+    
+    const latNum = typeof lat === 'string' ? parseFloat(lat) : lat;
+    const lngNum = typeof lng === 'string' ? parseFloat(lng) : lng;
+    
+    if (isNaN(latNum) || isNaN(lngNum)) {
+      return 'Invalid coordinates';
+    }
+    
+    return `${latNum.toFixed(4)}, ${lngNum.toFixed(4)}`;
+  };
+
+  const hasValidCoordinates = (location) => {
+    if (!location || typeof location !== 'object') return false;
+    
+    const lat = location.lat;
+    const lng = location.lng;
+    
+    if (lat === null || lat === undefined || lng === null || lng === undefined) return false;
+    
+    const latNum = typeof lat === 'string' ? parseFloat(lat) : lat;
+    const lngNum = typeof lng === 'string' ? parseFloat(lng) : lng;
+    
+    return !isNaN(latNum) && !isNaN(lngNum);
   };
 
   if (user?.role !== 'admin') {
@@ -156,13 +192,13 @@ const Bases = () => {
         </div>
         <div className="stat-card">
           <div className="stat-number">
-            {bases.filter(b => b.location?.lat && b.location?.lng).length}
+            {bases.filter(b => hasValidCoordinates(b.location)).length}
           </div>
           <div className="stat-label">With Coordinates</div>
         </div>
         <div className="stat-card">
           <div className="stat-number">
-            {bases.filter(b => !b.location?.lat || !b.location?.lng).length}
+            {bases.filter(b => !hasValidCoordinates(b.location)).length}
           </div>
           <div className="stat-label">No Coordinates</div>
         </div>
@@ -291,7 +327,7 @@ const Bases = () => {
                       <div className="base-info">
                         <span className="base-code">{base.baseCode}</span>
                         <div className="base-status">
-                          {base.location?.lat && base.location?.lng ? (
+                          {hasValidCoordinates(base.location) ? (
                             <span className="status-located">Located</span>
                           ) : (
                             <span className="status-pending">No coordinates</span>
@@ -333,7 +369,7 @@ const Bases = () => {
                     <div className="base-info">
                       <span className="base-code">{base.baseCode}</span>
                       <div className="base-status">
-                        {base.location?.lat && base.location?.lng ? (
+                        {hasValidCoordinates(base.location) ? (
                           <span className="status-located">Located</span>
                         ) : (
                           <span className="status-pending">No coordinates</span>
