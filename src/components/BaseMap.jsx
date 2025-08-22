@@ -19,22 +19,46 @@ const createBaseIcon = (isSelected = false) => {
   });
 };
 
+const safeCoordinate = (coord) => {
+  if (coord === null || coord === undefined) return null;
+  if (typeof coord === 'number') return coord;
+  if (typeof coord === 'string') {
+    const parsed = parseFloat(coord);
+    return isNaN(parsed) ? null : parsed;
+  }
+  return null;
+};
+
+const hasValidCoordinates = (location) => {
+  if (!location || typeof location !== 'object') return false;
+  const lat = safeCoordinate(location.lat);
+  const lng = safeCoordinate(location.lng);
+  return lat !== null && lng !== null;
+};
+
 const MapController = ({ selectedBase, bases }) => {
   const map = useMap();
 
   useEffect(() => {
     if (selectedBase && selectedBase !== 'ALL') {
       const base = bases.find(b => b.baseCode === selectedBase);
-      if (base && base.location) {
-        map.flyTo([base.location.lat, base.location.lng], 10, {
+      if (base && hasValidCoordinates(base.location)) {
+        const lat = safeCoordinate(base.location.lat);
+        const lng = safeCoordinate(base.location.lng);
+        map.flyTo([lat, lng], 10, {
           duration: 1.5,
           easeLinearity: 0.5
         });
       }
     } else {
-      if (bases.length > 0) {
+      const validBases = bases.filter(base => hasValidCoordinates(base.location));
+      if (validBases.length > 0) {
         const group = new L.featureGroup(
-          bases.map(base => L.marker([base.location.lat, base.location.lng]))
+          validBases.map(base => {
+            const lat = safeCoordinate(base.location.lat);
+            const lng = safeCoordinate(base.location.lng);
+            return L.marker([lat, lng]);
+          })
         );
         map.fitBounds(group.getBounds(), { padding: [20, 20] });
       } else {
@@ -65,9 +89,14 @@ const BaseMap = ({ onBaseSelect, selectedBase = 'ALL' }) => {
         const allBases = response.items || [];
         
         const basesWithCoords = allBases.map((base, index) => {
-          if (base.location && base.location.lat && base.location.lng && 
-              base.location.lat !== null && base.location.lng !== null) {
-            return base;
+          if (hasValidCoordinates(base.location)) {
+            return {
+              ...base,
+              location: {
+                lat: safeCoordinate(base.location.lat),
+                lng: safeCoordinate(base.location.lng)
+              }
+            };
           } else {
             const sampleCoords = [
               { lat: 28.6139, lng: 77.2090, city: 'Delhi' },
@@ -118,11 +147,22 @@ const BaseMap = ({ onBaseSelect, selectedBase = 'ALL' }) => {
 
   const formatDate = (dateStr) => {
     if (!dateStr) return 'Not available';
-    return new Date(dateStr).toLocaleDateString('en-IN', {
-      year: 'numeric',
-      month: 'short',
-      day: '2-digit'
-    });
+    try {
+      return new Date(dateStr).toLocaleDateString('en-IN', {
+        year: 'numeric',
+        month: 'short',
+        day: '2-digit'
+      });
+    } catch (error) {
+      return 'Invalid date';
+    }
+  };
+
+  const formatLocation = (location) => {
+    if (!hasValidCoordinates(location)) return 'Not specified';
+    const lat = safeCoordinate(location.lat);
+    const lng = safeCoordinate(location.lng);
+    return `${lat.toFixed(4)}, ${lng.toFixed(4)}`;
   };
 
   if (loading) {
@@ -148,12 +188,13 @@ const BaseMap = ({ onBaseSelect, selectedBase = 'ALL' }) => {
   }
 
   const selectedBaseData = bases.find(b => b.baseCode === selectedBase);
+  const validBasesForMarkers = bases.filter(base => hasValidCoordinates(base.location));
 
   return (
     <div className="base-map-container">
       <div className="map-header">
         <h3>Military Base Locations</h3>
-        <span className="base-count">{bases.length} bases mapped</span>
+        <span className="base-count">{validBasesForMarkers.length} bases mapped</span>
       </div>
       
       <div className="map-wrapper">
@@ -175,9 +216,9 @@ const BaseMap = ({ onBaseSelect, selectedBase = 'ALL' }) => {
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
           
-          <MapController selectedBase={selectedBase} bases={bases} />
+          <MapController selectedBase={selectedBase} bases={validBasesForMarkers} />
           
-          {bases.map((base) => (
+          {validBasesForMarkers.map((base) => (
             <Marker
               key={base._id}
               position={[base.location.lat, base.location.lng]}
@@ -190,7 +231,7 @@ const BaseMap = ({ onBaseSelect, selectedBase = 'ALL' }) => {
         </MapContainer>
       </div>
 
-      {selectedBaseData && selectedBase !== 'ALL' && (
+      {selectedBaseData && selectedBase !== 'ALL' && hasValidCoordinates(selectedBaseData.location) && (
         <div className="selected-base-info">
           <div className="info-header">
             <i className="material-icons">place</i>
@@ -203,9 +244,7 @@ const BaseMap = ({ onBaseSelect, selectedBase = 'ALL' }) => {
             </div>
             <div className="info-item">
               <span className="label">Coordinates</span>
-              <span className="value">
-                {selectedBaseData.location.lat.toFixed(4)}, {selectedBaseData.location.lng.toFixed(4)}
-              </span>
+              <span className="value">{formatLocation(selectedBaseData.location)}</span>
             </div>
             {selectedBaseData.nearestCity && (
               <div className="info-item">
